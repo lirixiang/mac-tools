@@ -1,26 +1,52 @@
+import sqlite3
 import pymysql
 import argparse
+import random
 parser = argparse.ArgumentParser()
+
 parser.add_argument("--mode", type=str, default="accurate")
 parser.add_argument("--key", type=str, default="")
 parser.add_argument("--sub", type=str, default="0,")
-parser.add_argument("--type", type=str, default="menu,talk,nothings")
+parser.add_argument("--type", type=str, default="menu,talk,nothings,rand_nothings")
 parser.add_argument("--menu", type=str, default="")
 args = parser.parse_args()
-from signal import signal, SIGPIPE, SIG_DFL, SIG_IGN
-signal(SIGPIPE, SIG_IGN)
 
 # 打开数据库连接
-db = pymysql.connect("localhost", "root", "lirixiang520", "SweetNothings")
+db = pymysql.connect(host="localhost", user="root", password="1234", database="SweetNothings")
+# db = sqlite3.connect('SweetNothings.db')
+
 # 使用 cursor() 方法创建一个游标对象 cursor
 cursor = db.cursor()
 
+def initialize_database():
+    """初始化数据库表结构"""
+
+
+    # 创建对话表
+    cursor.execute("""CREATE TABLE IF NOT EXISTS talk_art(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        pasterCatName TEXT,
+        title TEXT,
+        content TEXT)""")
+    
+    # 创建情话表
+    cursor.execute("""CREATE TABLE IF NOT EXISTS nothings(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sentence TEXT)""")
+    
+    db.commit()
+
+# initialize_database()  # 确保表存在
+
 def main():
+
     menu = args.type.split(",")
     if "talk" in menu:
         query_talk()
     if "nothings" in menu:
         nothings()
+    if "rand_nothings" in menu:
+        rand_nothings()
     if "menu" in menu:
         query_menu()
 
@@ -115,8 +141,37 @@ def nothings():
     except:
         pass
 
+def rand_nothings():
+    query_sql = """select sentence from nothings ORDER BY RAND() LIMIT 20"""
+    cursor.execute(query_sql)
+    res = cursor.fetchall()
+    # 定义可用的颜色代码 (ANSI颜色代码)
+    colors = [
+        '\033[31m',  # 红色
+        '\033[32m',  # 绿色
+        '\033[33m',  # 黄色
+        '\033[34m',  # 蓝色
+        '\033[35m',  # 紫色
+        '\033[36m',  # 青色
+        '\033[91m',  # 亮红
+        '\033[92m',  # 亮绿
+        '\033[93m',  # 亮黄
+        '\033[94m',  # 亮蓝
+        '\033[95m',  # 亮紫
+        '\033[96m',  # 亮青
+    ]
+
+    reset_color = '\033[0m'  # 重置颜色
+
+    for count, (sentence,) in enumerate(res, start=1):
+        # 随机选择一种颜色
+        color = random.choice(colors)
+        print(f"{count}. {color}{sentence.replace("<br>","\n")}{reset_color}")
+
+
 if __name__ == '__main__':
     main()
+    # rand_nothings()
 
 
 
