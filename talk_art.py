@@ -135,7 +135,6 @@ class SweetNothings:
                     WHERE pasterCatName LIKE '%{self.args.key}%' OR title LIKE  '%{self.args.key}%'  OR content LIKE  '%{self.args.key}%' """
 
         results = self.db.execute_query(sql)
-        print(results)
         self._display_results(results, "对话")
 
     def nothings(self):
