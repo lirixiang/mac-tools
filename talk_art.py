@@ -2,175 +2,375 @@ import sqlite3
 import pymysql
 import argparse
 import random
-parser = argparse.ArgumentParser()
+from abc import ABC, abstractmethod
 
+
+# 抽象工厂基类
+class DatabaseHandler(ABC):
+    @abstractmethod
+    def connect(self, **kwargs):
+        pass
+
+    @abstractmethod
+    def execute_query(self, sql):
+        pass
+
+    @abstractmethod
+    def close(self):
+        pass
+
+    @property
+    @abstractmethod
+    def random_func(self):
+        pass
+
+
+# MySQL 具体实现
+class MySQLHandler(DatabaseHandler):
+    def __init__(self):
+        self.connection = None
+        self.cursor = None
+        self._random_func = "RAND()"
+
+    @property
+    def random_func(self):
+        return self._random_func
+
+    def connect(self, **kwargs):
+        self.connection = pymysql.connect(
+            host=kwargs.get('host'),
+            user=kwargs.get('user'),
+            password=kwargs.get('password'),
+            database=kwargs.get('database')
+        )
+        self.cursor = self.connection.cursor()
+
+    def execute_query(self, sql):
+        self.cursor.execute(sql)
+        return self.cursor.fetchall()
+
+    def close(self):
+        self.cursor.close()
+        self.connection.close()
+
+
+# SQLite 具体实现
+class SQLiteHandler(DatabaseHandler):
+    def __init__(self):
+        self.connection = None
+        self.cursor = None
+        self._random_func = "RANDOM()"
+
+    @property
+    def random_func(self):
+        return self._random_func
+
+    def connect(self, **kwargs):
+        self.connection = sqlite3.connect(kwargs.get('database'))
+        self.cursor = self.connection.cursor()
+
+    def execute_query(self, sql):
+        self.cursor.execute(sql)
+        return self.cursor.fetchall()
+
+    def close(self):
+        self.connection.close()
+
+
+# 数据库工厂
+class DBFactory:
+    @staticmethod
+    def create_handler(db_type):
+        handlers = {
+            'mysql': MySQLHandler,
+            'sqlite': SQLiteHandler
+        }
+        return handlers[db_type]()
+
+
+# 参数解析
+parser = argparse.ArgumentParser()
 parser.add_argument("--mode", type=str, default="accurate")
 parser.add_argument("--key", type=str, default="")
 parser.add_argument("--sub", type=str, default="0,")
 parser.add_argument("--type", type=str, default="menu,talk,nothings,rand_nothings")
 parser.add_argument("--menu", type=str, default="")
+parser.add_argument("--db-type", choices=['mysql', 'sqlite'], default='sqlite')
+parser.add_argument("--db-name", default='SweetNothings.db')
+parser.add_argument("--host", default='localhost')
+parser.add_argument("--user", default='root')
+parser.add_argument("--password", default='')
 args = parser.parse_args()
 
-# 打开数据库连接
-db = pymysql.connect(host="localhost", user="root", password="1234", database="SweetNothings")
-# db = sqlite3.connect('SweetNothings.db')
+# 初始化数据库连接
+db_handler = DBFactory.create_handler(args.db_type)
+connection_params = {
+    'database': args.db_name,
+    'host': args.host,
+    'user': args.user,
+    'password': args.password
+}
+db_handler.connect(**connection_params)
 
-# 使用 cursor() 方法创建一个游标对象 cursor
-cursor = db.cursor()
 
-def initialize_database():
-    """初始化数据库表结构"""
+class SweetNothings:
+    def __init__(self, handler, args):
+        self.db = handler
+        self.args = args
+        self.paster_cat_names = self._get_menu_data()
+
+    def _get_menu_data(self):
+        sql = """SELECT pasterCatName FROM talk_art GROUP BY pasterCatName"""
+        return [row[0] for row in self.db.execute_query(sql)]
+
+    def query_menu(self):
+        print("\n\033[1;31m菜单:\033[0m")
+        for idx, name in enumerate(self.paster_cat_names, 1):
+            print(f"{idx}. {name}", end="\t\t")
+        print("\n")
+
+    def query_talk(self):
+
+        sql = f"""SELECT * FROM talk_art 
+                    WHERE pasterCatName LIKE '%{self.args.key}%' OR title LIKE  '%{self.args.key}%'  OR content LIKE  '%{self.args.key}%' """
+
+        results = self.db.execute_query(sql)
+        print(results)
+        self._display_results(results, "对话")
+
+    def nothings(self):
+        sql = f"""SELECT sentence FROM nothings 
+                WHERE sentence LIKE '%%{self.args.key}%%'"""
+        results = self.db.execute_query(sql)
+        self._display_results(results, "土味情话")
+
+    def rand_nothings(self):
+        sql = f"""SELECT sentence FROM nothings 
+                ORDER BY {self.db.random_func} LIMIT 20"""
+        results = self.db.execute_query(sql)
+        self._display_colored_results(results)
+
+    def _display_results(self, results, title):
+        print(f"\033[1;31m{title}:\033[0m")
+
+        for idx in range(len(results)):
+            row = results[idx]
+            print(f"{idx + 1} {'*' * 50}")
+            print(f"\033[1;34m{row[1]}\033[0m".replace(self.args.key,f"\033[1;31m{self.args.key}\033[0m").replace("\\n","\n"))
+            print(row[2].replace(self.args.key,f"\033[1;31m{self.args.key}\033[0m").replace("\\n","\n"))
+            print(f"\033[1;33m{row[3]}\033[0m".replace(self.args.key,f"\033[1;31m{self.args.key}\033[0m").replace("\\n","\n"))
+        print(f"总数: {len(results)}")
+
+    def _display_colored_results(self, results):
+        colors = ['\033[3{}m'.format(i) for i in range(1, 7)]
+        reset = '\033[0m'
+
+        for idx, row in enumerate(results, 1):
+            color = random.choice(colors)
+            sentence = row[0].replace("<br>", "\n")
+            print(f"{idx}. {color}{sentence}{reset}")
 
 
-    # 创建对话表
-    cursor.execute("""CREATE TABLE IF NOT EXISTS talk_art(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        pasterCatName TEXT,
-        title TEXT,
-        content TEXT)""")
-    
-    # 创建情话表
-    cursor.execute("""CREATE TABLE IF NOT EXISTS nothings(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        sentence TEXT)""")
-    
-    db.commit()
+# 命令行参数解析
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", default="accurate")
+    parser.add_argument("--key", default="")
+    parser.add_argument("--type", default="menu,talk,nothings,rand_nothings")
+    parser.add_argument("--menu", default="")
+    parser.add_argument("--db-type", choices=['mysql', 'sqlite'], default='sqlite')
+    parser.add_argument("--db-name", default='SweetNothings.db')
+    parser.add_argument("--host", default='localhost')
+    parser.add_argument("--user", default='root')
+    parser.add_argument("--password", default='')
+    return parser.parse_args()
 
-# initialize_database()  # 确保表存在
 
 def main():
+    args = parse_args()
 
-    menu = args.type.split(",")
-    if "talk" in menu:
-        query_talk()
-    if "nothings" in menu:
-        nothings()
-    if "rand_nothings" in menu:
-        rand_nothings()
-    if "menu" in menu:
-        query_menu()
+    db_handler = DBFactory.create_handler(args.db_type)
+    db_handler.connect(
+        database=args.db_name,
+        host=args.host,
+        user=args.user,
+        password=args.password
+    )
 
+    app = SweetNothings(db_handler, args)
 
-    # 关闭数据库连接
-    cursor.close()
-    db.close()
+    for func_type in args.type.split(','):
+        if func_type == 'menu':
+            app.query_menu()
+        elif func_type == 'talk':
+            app.query_talk()
+        elif func_type == 'nothings':
+            app.nothings()
+        elif func_type == 'rand_nothings':
+            app.rand_nothings()
 
-def menu():
-    query_sql = """select pasterCatName from talk_art GROUP BY pasterCatName;"""
-    cursor.execute(query_sql)
-    return cursor.fetchall()
-pasterCatName = menu()
-
-def query_menu():
-    print("\n\033[1;31m菜单:\033[0m")
-    for index in range(len(pasterCatName)):
-        print(index+1,".",pasterCatName[index][0],end="\t\t\t\t")
-    print("\n")
-
-def query_talk():
-
-
-    try:
-        paster = int(args.menu)
-    except:
-        paster = ""
-    try:
-        kclass = pasterCatName[paster-1][0]
-    except:
-        kclass = ""
-
-    if args.mode == "fuzzy":
-        query_sql = """select * from talk_art where pasterCatName like '%%%s%%' and title like '%%%s%%' or content like '%%%s%%'"""%(kclass,args.key,args.key)
-        #print(query_sql)
-    elif args.mode == "accurate":
-        query_sql = """select * from talk_art where pasterCatName like '%%%s%%' and title like '%%%s%%' """%(kclass,args.key)
-        #print(query_sql)
-    cursor.execute(query_sql)
-    res = cursor.fetchall()
-    length = len(res)
-    try:
-        start,end = [int(i) for i in args.sub.split(",")]
-    except:
-        start = 0
-        end = length
-
-
-    try:
-        if end >= length:
-            end = length
-    except:
-        end = length
-    print("\033[1;31;m对话:\033[0m")
-
-    for index in range(start,end):
-        print(index + 1,"*"*50)
-        print("\033[1;32m%s\033[0m"%res[index][1])
-        print("\033[1;34m%s\033[0m"%res[index][2])
-        print(res[index][3])
-    print("总数:",len(res))
-
-def nothings():
-    try:
-        keyword = args.key
-    except:
-        keyword = ""
-    query_sql = """select sentence from nothings where sentence like '%%%s%%'"""%(keyword)
-    cursor.execute(query_sql)
-    res = cursor.fetchall()
-    length = len(res)
-    try:
-        start,end = [int(i) for i in args.sub.split(",")]
-    except:
-        start = 0
-        end = length
-
-
-    try:
-        if end >= length:
-            end = length
-    except:
-        end = length
-    print("\n\033[1;31;m土味情话:\033[0m")
-
-
-    try:
-        for index in range(start,end):
-            print(index+1,"*"*50)
-            print("\033[1;33m%s\033[0m"%res[index][0])
-        print("总数:",index+1)
-    except:
-        pass
-
-def rand_nothings():
-    query_sql = """select sentence from nothings ORDER BY RAND() LIMIT 20"""
-    cursor.execute(query_sql)
-    res = cursor.fetchall()
-    # 定义可用的颜色代码 (ANSI颜色代码)
-    colors = [
-        '\033[31m',  # 红色
-        '\033[32m',  # 绿色
-        '\033[33m',  # 黄色
-        '\033[34m',  # 蓝色
-        '\033[35m',  # 紫色
-        '\033[36m',  # 青色
-        '\033[91m',  # 亮红
-        '\033[92m',  # 亮绿
-        '\033[93m',  # 亮黄
-        '\033[94m',  # 亮蓝
-        '\033[95m',  # 亮紫
-        '\033[96m',  # 亮青
-    ]
-
-    reset_color = '\033[0m'  # 重置颜色
-
-    for count, (sentence,) in enumerate(res, start=1):
-        # 随机选择一种颜色
-        color = random.choice(colors)
-        print(f"{count}. {color}{sentence.replace("<br>","\n")}{reset_color}")
+    db_handler.close()
 
 
 if __name__ == '__main__':
     main()
+#
+#
+# import sqlite3
+# import pymysql
+# import argparse
+# import random
+# parser = argparse.ArgumentParser()
+#
+# parser.add_argument("--mode", type=str, default="accurate")
+# parser.add_argument("--key", type=str, default="")
+# parser.add_argument("--sub", type=str, default="0,")
+# parser.add_argument("--type", type=str, default="menu,talk,nothings,rand_nothings")
+# parser.add_argument("--menu", type=str, default="")
+# args = parser.parse_args()
+#
+# # 打开数据库连接
+# db = pymysql.connect(host="localhost", user="root", password="Lirixiang520,", database="SweerNothings")
+# # db = sqlite3.connect('SweetNothings.db')
+#
+# # 使用 cursor() 方法创建一个游标对象 cursor
+# cursor = db.cursor()
+#
+#
+#
+# def main():
+#     menu = args.type.split(",")
+#     if "talk" in menu:
+#         query_talk()
+#     if "nothings" in menu:
+#         nothings()
+#     if "rand_nothings" in menu:
+#         rand_nothings()
+#     if "menu" in menu:
+#         query_menu()
+#
+#
+#     # 关闭数据库连接
+#     cursor.close()
+#     db.close()
+#
+# def menu():
+#     query_sql = """select pasterCatName from talk_art GROUP BY pasterCatName;"""
+#     cursor.execute(query_sql)
+#     return cursor.fetchall()
+# pasterCatName = menu()
+#
+# def query_menu():
+#     print("\n\033[1;31m菜单:\033[0m")
+#     for index in range(len(pasterCatName)):
+#         print(index+1,".",pasterCatName[index][0],end="\t\t\t\t")
+#     print("\n")
+#
+# def query_talk():
+#
+#
+#     try:
+#         paster = int(args.menu)
+#     except:
+#         paster = ""
+#     try:
+#         kclass = pasterCatName[paster-1][0]
+#     except:
+#         kclass = ""
+#
+#     if args.mode == "fuzzy":
+#         query_sql = """select * from talk_art where pasterCatName like '%%%s%%' and title like '%%%s%%' or content like '%%%s%%'"""%(kclass,args.key,args.key)
+#         #print(query_sql)
+#     elif args.mode == "accurate":
+#         query_sql = """select * from talk_art where pasterCatName like '%%%s%%' and title like '%%%s%%' """%(kclass,args.key)
+#         #print(query_sql)
+#     cursor.execute(query_sql)
+#     res = cursor.fetchall()
+#     length = len(res)
+#     try:
+#         start,end = [int(i) for i in args.sub.split(",")]
+#     except:
+#         start = 0
+#         end = length
+#
+#
+#     try:
+#         if end >= length:
+#             end = length
+#     except:
+#         end = length
+#     print("\033[1;31;m对话:\033[0m")
+#
+#     for index in range(start,end):
+#         print(index + 1,"*"*50)
+#         print("\033[1;32m%s\033[0m"%res[index][1])
+#         print("\033[1;34m%s\033[0m"%res[index][2])
+#         print(res[index][3])
+#     print("总数:",len(res))
+#
+# def nothings():
+#     try:
+#         keyword = args.key
+#     except:
+#         keyword = ""
+#     query_sql = """select sentence from nothings where sentence like '%%%s%%'"""%(keyword)
+#     cursor.execute(query_sql)
+#     res = cursor.fetchall()
+#     length = len(res)
+#     try:
+#         start,end = [int(i) for i in args.sub.split(",")]
+#     except:
+#         start = 0
+#         end = length
+#
+#
+#     try:
+#         if end >= length:
+#             end = length
+#     except:
+#         end = length
+#     print("\n\033[1;31;m土味情话:\033[0m")
+#
+#
+#     try:
+#         for index in range(start,end):
+#             print(index+1,"*"*50)
+#             print("\033[1;33m%s\033[0m"%res[index][0])
+#         print("总数:",index+1)
+#     except:
+#         pass
+#
+# def rand_nothings():
+#     query_sql = """select sentence from nothings ORDER BY RAND() LIMIT 20"""
+#     cursor.execute(query_sql)
+#     res = cursor.fetchall()
+#     # 定义可用的颜色代码 (ANSI颜色代码)
+#     colors = [
+#         '\033[31m',  # 红色
+#         '\033[32m',  # 绿色
+#         '\033[33m',  # 黄色
+#         '\033[34m',  # 蓝色
+#         '\033[35m',  # 紫色
+#         '\033[36m',  # 青色
+#         '\033[91m',  # 亮红
+#         '\033[92m',  # 亮绿
+#         '\033[93m',  # 亮黄
+#         '\033[94m',  # 亮蓝
+#         '\033[95m',  # 亮紫
+#         '\033[96m',  # 亮青
+#     ]
+#
+#     reset_color = '\033[0m'  # 重置颜色
+#
+#     for count, (sentence,) in enumerate(res, start=1):
+#         # 随机选择一种颜色
+#         color = random.choice(colors)
+#         sentence = sentence.replace("<br>", "\n")
+#         print(f"{count}. {color}{sentence}{reset_color}")
+#
+#
+# if __name__ == '__main__':
+#     main()
     # rand_nothings()
 
 
