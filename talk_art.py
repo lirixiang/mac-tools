@@ -89,28 +89,28 @@ class DBFactory:
 
 
 # 参数解析
-parser = argparse.ArgumentParser()
-parser.add_argument("--mode", type=str, default="accurate")
-parser.add_argument("--key", type=str, default="")
-parser.add_argument("--sub", type=str, default="0,")
-parser.add_argument("--type", type=str, default="menu,talk,nothings,rand_nothings")
-parser.add_argument("--menu", type=str, default="")
-parser.add_argument("--db-type", choices=['mysql', 'sqlite'], default='sqlite')
-parser.add_argument("--db-name", default='SweetNothings.db')
-parser.add_argument("--host", default='localhost')
-parser.add_argument("--user", default='root')
-parser.add_argument("--password", default='')
-args = parser.parse_args()
-
-# 初始化数据库连接
-db_handler = DBFactory.create_handler(args.db_type)
-connection_params = {
-    'database': args.db_name,
-    'host': args.host,
-    'user': args.user,
-    'password': args.password
-}
-db_handler.connect(**connection_params)
+# parser = argparse.ArgumentParser()
+# parser.add_argument("--mode", type=str, default="accurate")
+# parser.add_argument("--key", type=str, default="")
+# parser.add_argument("--sub", type=str, default="0,")
+# parser.add_argument("--type", type=str, default="menu,talk,nothings,rand_nothings")
+# parser.add_argument("--menu", type=str, default="")
+# parser.add_argument("--db-type", choices=['mysql', 'sqlite'], default='sqlite')
+# parser.add_argument("--db-name", default='SweetNothings.db')
+# parser.add_argument("--host", default='localhost')
+# parser.add_argument("--user", default='root')
+# parser.add_argument("--password", default='')
+# args = parser.parse_args()
+#
+# # 初始化数据库连接
+# db_handler = DBFactory.create_handler(args.db_type)
+# connection_params = {
+#     'database': args.db_name,
+#     'host': args.host,
+#     'user': args.user,
+#     'password': args.password
+# }
+# db_handler.connect(**connection_params)
 
 
 class SweetNothings:
@@ -152,7 +152,7 @@ class SweetNothings:
     def _display_results(self, results, title):
         print(f"\033[1;31m{title}:\033[0m")
 
-        for idx in range(len(results)):
+        for idx in range(len(results)-1):
             row = results[idx]
             print(f"{idx + 1} {'*' * 50}")
             print(f"\033[1;34m{row[1]}\033[0m".replace(self.args.key,f"\033[1;31m{self.args.key}\033[0m").replace("\\n","\n"))
@@ -177,7 +177,7 @@ def parse_args():
     parser.add_argument("--type", default="menu,talk,nothings,rand_nothings")
     parser.add_argument("--menu", default="")
     parser.add_argument("--db-type", choices=['mysql', 'sqlite'], default='sqlite')
-    parser.add_argument("--db-name", default='SweetNothings.db')
+    parser.add_argument("--db-name", default='/Users/ivan/Desktop/project/mac-tools/SweetNothings.db')
     parser.add_argument("--host", default='localhost')
     parser.add_argument("--user", default='root')
     parser.add_argument("--password", default='')
