@@ -152,13 +152,24 @@ class SweetNothings:
     def _display_results(self, results, title):
         print(f"\033[1;31m{title}:\033[0m")
 
-        for idx in range(len(results)-1):
-            row = results[idx]
-            print(f"{idx + 1} {'*' * 50}")
-            print(f"\033[1;34m{row[1]}\033[0m".replace(self.args.key,f"\033[1;31m{self.args.key}\033[0m").replace("\\n","\n"))
-            print(row[2].replace(self.args.key,f"\033[1;31m{self.args.key}\033[0m").replace("\\n","\n"))
-            print(f"\033[1;33m{row[3]}\033[0m".replace(self.args.key,f"\033[1;31m{self.args.key}\033[0m").replace("\\n","\n"))
-        print(f"总数: {len(results)}")
+        seen = set()
+        unique_results = []
+        for row in results:
+            key = tuple(row)
+            if key not in seen:
+                seen.add(key)
+                unique_results.append(row)
+
+        for idx, row in enumerate(unique_results):
+            print(f"\n{idx + 1} {'*' * 50}")
+            print(
+                f"\033[1;33m{row[3]}\033[0m".replace(self.args.key, f"\033[1;31m{self.args.key}\033[0m").replace("\\n",
+                                                                                                                 "\n"))
+            print(
+                f"\033[1;34m{row[1]}\033[0m".replace(self.args.key, f"\033[1;31m{self.args.key}\033[0m").replace("\\n",
+                                                                                                                 "\n"))
+            print(row[2].replace(self.args.key, f"\033[1;31m{self.args.key}\033[0m").replace("\\n", "\n"))
+        print(f"总数: {len(unique_results)}")
 
     def _display_colored_results(self, results):
         colors = ['\033[3{}m'.format(i) for i in range(1, 7)]
@@ -177,7 +188,7 @@ def parse_args():
     parser.add_argument("--type", default="menu,talk,nothings,rand_nothings")
     parser.add_argument("--menu", default="")
     parser.add_argument("--db-type", choices=['mysql', 'sqlite'], default='sqlite')
-    parser.add_argument("--db-name", default='/Users/ivan/Desktop/project/mac-tools/SweetNothings.db')
+    parser.add_argument("--db-name", default='/home/lirixiang/Desktop/project/mac-tools/SweetNothings.db')
     parser.add_argument("--host", default='localhost')
     parser.add_argument("--user", default='root')
     parser.add_argument("--password", default='')
