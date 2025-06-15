@@ -152,7 +152,7 @@ class SweetNothings:
     def _display_results(self, results, title):
         print(f"\033[1;31m{title}:\033[0m")
 
-        for idx in range(len(results)-1):
+        for idx in range(len(results)):
             row = results[idx]
             print(f"{idx + 1} {'*' * 50}")
             print(f"\033[1;34m{row[1]}\033[0m".replace(self.args.key,f"\033[1;31m{self.args.key}\033[0m").replace("\\n","\n"))
