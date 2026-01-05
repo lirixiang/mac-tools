@@ -177,7 +177,7 @@ def parse_args():
     parser.add_argument("--type", default="menu,talk,nothings,rand_nothings")
     parser.add_argument("--menu", default="")
     parser.add_argument("--db-type", choices=['mysql', 'sqlite'], default='sqlite')
-    parser.add_argument("--db-name", default='/Users/ivan/Desktop/project/mac-tools/intimate/SweetNothings.db')
+    parser.add_argument("--db-name", default='/home/lirixiang/Desktop/project/mac-tools/intimate/SweetNothings.db')
     parser.add_argument("--host", default='localhost')
     parser.add_argument("--user", default='root')
     parser.add_argument("--password", default='')

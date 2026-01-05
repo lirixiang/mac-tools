@@ -1,0 +1,29 @@
+data_loading:
+  source: "csv"  # Options: csv, api, etc.
+  path: "./data/"  # Path to the data directory
+
+model:
+  type: "transformer"  # Model type
+  params:
+    num_layers: 6
+    d_model: 512
+    num_heads: 8
+    dff: 2048
+    dropout_rate: 0.1
+
+training:
+  batch_size: 32
+  learning_rate: 0.001
+  epochs: 100
+  validation_split: 0.2
+
+backtesting:
+  initial_capital: 100000  # Starting capital for backtesting
+  commission: 0.001  # Transaction cost as a fraction of the trade value
+  slippage: 0.01  # Slippage as a fraction of the trade value
+
+logging:
+  level: "INFO"  # Logging level
+  log_file: "./logs/trading.log"  # Path to the log file
+
+seed: 42  # Random seed for reproducibility
