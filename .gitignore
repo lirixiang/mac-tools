@@ -18,3 +18,11 @@ bin-release/
 # information for Eclipse / Flash Builder.
 .idea
 .venv
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+
+# macOS
+.DS_Store
